@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notas em Trânsito Rede Ancora</title>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js, Plugin DataLabels & SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg-body: #003B5D; /* Fundo Azul Escuro */
+      --card-bg: #FFFFFF;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+      
+      /* Paleta de Cores do Dashboard */
+      --green-leaf: #2E7D32;
+      --green-leaf-light: #E8F5E9;
+      --red-accent: #C62828;
+      --red-light: #FFEBEE;
+      
+      --yellow-alert: #F59E0B;
+      --yellow-light: #FEF3C7;
+      --yellow-light-alt: #FBBF24;
+      --orange-alert: #EA580C;
+      --orange-light: #FFEDD5;
+      
+      --blue-light: #38BDF8;
+      --blue-medium: #0284C7;
+      --blue-dark: #003B5D;
+      
+      --olive-green: #556B2F;
+      --olive-light: #F0F4E8;
+      --purple-pastel: #8B5CF6;
+      --purple-light: #F3E8FF;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg-body); color: var(--text-main); padding: 24px; min-height: 100vh; }
+    
+    .container { max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+    /* Header */
+    .header {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 4px 20px -2px rgba(0,0,0,0.15);
+      border: 1px solid var(--border-color);
+    }
+    
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Quadrado 96x96px com encaixe perfeito da foto */
+    .title-img-box {
+      width: 96px;
+      height: 96px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #003B5D;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .title-img-box:hover { opacity: 0.9; transform: scale(1.02); }
+    .title-img-box img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+      border-radius: 12px;
+    }
+    .title-img-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    .header-title h1 { font-size: 1.5rem; font-weight: 800; color: var(--blue-dark); display: flex; align-items: center; gap: 10px; }
+    .header-title p { font-size: 0.88rem; color: var(--text-muted); margin-top: 2px; }
+    
+    .header-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .btn-import {
+      background-color: var(--green-leaf);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      border: none;
+      box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
+    }
+    .btn-import:hover { background-color: #1B5E20; transform: translateY(-2px); }
+
+    .btn-export-hdr {
+      background-color: var(--red-accent);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      border: none;
+      box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+    }
+    .btn-export-hdr:hover { background-color: #B71C1C; transform: translateY(-2px); }
+    #fileInput { display: none; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+    .kpi-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
+    .kpi-card.green::before { background-color: var(--green-leaf); }
+    .kpi-card.red::before { background-color: var(--red-accent); }
+    .kpi-card.blue-light::before { background-color: var(--blue-light); }
+    .kpi-card.yellow-alt::before { background-color: var(--yellow-light-alt); }
+    .kpi-card.orange::before { background-color: var(--orange-alert); }
+
+    .kpi-header { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; }
+    .kpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .kpi-value { font-size: 1.6rem; font-weight: 800; margin-top: 10px; color: var(--text-main); }
+    .kpi-subtext { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Filters Section */
+    .filter-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 20px 24px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+    .filter-group { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 6px; }
+    .filter-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .filter-group select, .filter-group input {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background-color: #F8FAFC;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .filter-group select:focus, .filter-group input:focus { border-color: var(--green-leaf); background-color: #fff; }
+    .btn-reset {
+      background: #F1F5F9;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      align-self: flex-end;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-reset:hover { background: #E2E8F0; }
+
+    /* Insights Section */
+    .insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .insight-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 18px 20px;
+      border-left: 5px solid var(--green-leaf);
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .insight-card.red { border-left-color: var(--red-accent); }
+    .insight-card.yellow { border-left-color: var(--yellow-alert); }
+    .insight-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .insight-body { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+
+    /* Charts Section */
+    .charts-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 18px;
+      padding: 22px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .col-4 { grid-column: span 4; }
+    .col-8 { grid-column: span 8; }
+    .col-6 { grid-column: span 6; }
+    
+    @media (max-width: 1024px) { .col-4, .col-8, .col-6 { grid-column: span 12; } }
+
+    .chart-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .chart-container { position: relative; width: 100%; height: 280px; }
+
+    /* Data Table Card & Specific Column Filters */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: 18px;
+      padding: 22px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .table-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .table-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-export-table {
+      background-color: var(--blue-medium);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-export-table:hover { background-color: #02699E; }
+
+    .btn-delete-all {
+      background-color: var(--red-accent);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-delete-all:hover { background-color: #B71C1C; }
+
+    .btn-delete-row {
+      background: none;
+      border: none;
+      color: var(--red-accent);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .btn-delete-row:hover { background: var(--red-light); }
+
+    .table-filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      background: #F8FAFC;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-color);
+    }
+    .table-filter-item { display: flex; flex-direction: column; gap: 4px; }
+    .table-filter-item label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .table-filter-item select, .table-filter-item input {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: #FFFFFF;
+      font-size: 0.82rem;
+      outline: none;
+    }
+    .table-filter-item select:focus, .table-filter-item input:focus { border-color: var(--green-leaf); }
+
+    .input-date-table, .input-obs-table, .input-transp-table {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      background-color: #FAFAFA;
+      color: var(--text-main);
+      outline: none;
+      width: 100%;
+    }
+    .input-date-table:focus, .input-obs-table:focus, .input-transp-table:focus {
+      border-color: var(--green-leaf);
+      background-color: #FFF;
+    }
+
+    .table-wrapper { overflow-x: auto; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
+    th { background: #F8FAFC; color: var(--text-muted); padding: 12px 16px; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; border-bottom: 1px solid var(--border-color); }
+    td { padding: 10px 16px; border-bottom: 1px solid #F1F5F9; color: var(--text-main); vertical-align: middle; }
+    tr:hover { background-color: #F1F8E9; }
+
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+    .badge-success { background: var(--green-leaf-light); color: var(--green-leaf); }
+    .badge-pendente { background: var(--yellow-light); color: #B45309; }
+    .badge-atencao { background: var(--orange-light); color: var(--orange-alert); }
+    .badge-danger { background: #FFCDD2; color: #B71C1C; }
+    .badge-purple { background: var(--purple-light); color: var(--purple-pastel); }
+
+    /* Pagination */
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 0.85rem; color: var(--text-muted); }
+    .pagination-btns { display: flex; gap: 8px; }
+    .pagination-btns button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: #fff; cursor: pointer; font-weight: 600; }
+    .pagination-btns button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-brand">
+        <!-- Logo da Rede Ancora exato embutido via Base64 -->
+        <div class="title-img-box" title="Clique para alterar a imagem se necessário">
+          <img id="title-img-preview" src="https://i.imgur.com/8QGZmQe.png" alt="Rede Âncora Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'96\' height=\'96\' viewBox=\'0 0 96 96\'><rect width=\'96\' height=\'96\' fill=\'%23003B5D\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'white\' font-size=\'12\' font-family=\'sans-serif\'>REDE ANCORA</text></svg>'">
+          <input type="file" accept="image/png, image/jpeg, image/gif, image/webp" onchange="handleTitleImageUpload(event)">
+        </div>
+        <div class="header-title">
+          <h1>Notas em Trânsito Rede Ancora</h1>
+          <p>Monitoramento e Inteligência de Cobrança e Logística de Notas Fiscais</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-export-hdr" onclick="exportAtrasadasExcel()">
+          <i data-lucide="download"></i> Exportar (≥ 7 Dias)
+        </button>
+        <button class="btn-import" onclick="document.getElementById('fileInput').click()">
+          <i data-lucide="upload"></i> Importar Nova Base
+        </button>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)">
+      </div>
+    </header>
+
+    <!-- KPI Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-header">
+          <span>VALOR EM TRÂNSITO</span>
+          <div class="kpi-icon" style="background: var(--green-leaf-light); color: var(--green-leaf);"><i data-lucide="dollar-sign"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-total-val">R$ 0,00</div>
+        <div class="kpi-subtext">Montante total financeiro pendente</div>
+      </div>
+
+      <div class="kpi-card red">
+        <div class="kpi-header">
+          <span>TOTAL DE NOTAS</span>
+          <div class="kpi-icon" style="background: var(--red-light); color: var(--red-accent);"><i data-lucide="file-text"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-total-notes">0</div>
+        <div class="kpi-subtext">Documentos fiscais registrados</div>
+      </div>
+
+      <div class="kpi-card blue-light">
+        <div class="kpi-header">
+          <span>MÉDIA DIAS TRÂNSITO</span>
+          <div class="kpi-icon" style="background: #E0F2FE; color: var(--blue-light);"><i data-lucide="clock"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-avg-days">0 dias</div>
+        <div class="kpi-subtext">Tempo médio desde emissão</div>
+      </div>
+
+      <div class="kpi-card yellow-alt">
+        <div class="kpi-header">
+          <span>NOTAS ≥ 7 DIAS</span>
+          <div class="kpi-icon" style="background: var(--yellow-light); color: var(--yellow-light-alt);"><i data-lucide="alert-triangle"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-critical-val">R$ 0,00</div>
+        <div class="kpi-subtext" id="kpi-critical-count">0 notas com 7+ dias em trânsito</div>
+      </div>
+
+      <div class="kpi-card orange">
+        <div class="kpi-header">
+          <span>TOTAL NOTAS EM ATRASO (>7 DIAS)</span>
+          <div class="kpi-icon" style="background: var(--orange-light); color: var(--orange-alert);"><i data-lucide="alert-octagon"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-over-7-count">0 notas</div>
+        <div class="kpi-subtext">Volume numérico acumulado > 7 dias</div>
+      </div>
+    </section>
+
+    <!-- Global Filters Section -->
+    <section class="filter-card">
+      <div class="filter-group">
+        <label>UF Filial (Geral)</label>
+        <select id="filter-uf" onchange="applyFilters()">
+          <option value="">Todas as UFs</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Fornecedor (Geral)</label>
+        <select id="filter-fornecedor" onchange="applyFilters()">
+          <option value="">Todos os Fornecedores</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Modalidade (Geral)</label>
+        <select id="filter-modalidade" onchange="applyFilters()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Faixa de Dias (Geral)</label>
+        <select id="filter-faixa" onchange="applyFilters()">
+          <option value="">Todas as Faixas</option>
+          <option value="0-6">Até 6 dias</option>
+          <option value="7-15">7 a 15 dias</option>
+          <option value="16-30">16 a 30 dias</option>
+          <option value="31+">Mais de 30 dias</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="flex: 1.5;">
+        <label>Pesquisar (Nota / Fornecedor / Transp.)</label>
+        <input type="text" id="filter-search" placeholder="Digite termo..." oninput="applyFilters()">
+      </div>
+
+      <button class="btn-reset" onclick="resetFilters()">
+        <i data-lucide="rotate-ccw"></i> Limpar
+      </button>
+    </section>
+
+    <!-- Insights Automáticos -->
+    <section class="insights-grid">
+      <div class="insight-card">
+        <div class="insight-title"><i data-lucide="trending-up" style="color:var(--green-leaf)"></i> Concentração de Fornecedores</div>
+        <div class="insight-body" id="insight-fornecedor">Carregando análise...</div>
+      </div>
+      <div class="insight-card yellow">
+        <div class="insight-title"><i data-lucide="map-pin" style="color:var(--yellow-alert)"></i> Maior Hub de Destino (UF)</div>
+        <div class="insight-body" id="insight-uf">Carregando análise...</div>
+      </div>
+      <div class="insight-card red">
+        <div class="insight-title"><i data-lucide="shield-alert" style="color:var(--red-accent)"></i> Gargalos e Idade da Carga</div>
+        <div class="insight-body" id="insight-aging">Carregando análise...</div>
+      </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts-grid">
+      <div class="chart-card col-4">
+        <div class="chart-title"><i data-lucide="pie-chart" style="color:var(--green-leaf)"></i> Valor por Modalidade</div>
+        <div class="chart-container"><canvas id="chartModalidade"></canvas></div>
+      </div>
+
+      <div class="chart-card col-8">
+        <div class="chart-title"><i data-lucide="bar-chart-2" style="color:var(--red-accent)"></i> Maior Faturamento por Fornecedor (R$)</div>
+        <div class="chart-container"><canvas id="chartFornecedores"></canvas></div>
+      </div>
+
+      <div class="chart-card col-6">
+        <div class="chart-title"><i data-lucide="map" style="color:var(--blue-medium)"></i> Quantidade de Notas por UF Filial</div>
+        <div class="chart-container"><canvas id="chartUF"></canvas></div>
+      </div>
+
+      <div class="chart-card col-6">
+        <div class="chart-title"><i data-lucide="clock" style="color:var(--purple-pastel)"></i> Faixa de Dias em Trânsito</div>
+        <div class="chart-container"><canvas id="chartAging"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Data Table Card & Specific Column Filters -->
+    <section class="table-card">
+      <div class="table-header-flex">
+        <div class="chart-title" style="margin-bottom: 0;">
+          <i data-lucide="list" style="color:var(--green-leaf)"></i> Notas Fiscais em Trânsito
+        </div>
+        <div class="table-header-actions">
+          <span style="font-size:0.85rem; color:var(--text-muted);" id="table-count">Mostrando 0 registros</span>
+          <button class="btn-export-table" onclick="exportTableDataExcel()">
+            <i data-lucide="file-spreadsheet"></i> Exportar Tabela Filtrada (.xlsx)
+          </button>
+          <button class="btn-delete-all" onclick="removeAllNotes()">
+            <i data-lucide="trash-2"></i> Excluir Toda a Relação
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros Específicos por Coluna -->
+      <div class="table-filters-grid">
+        <div class="table-filter-item">
+          <label>Data Emissão</label>
+          <input type="text" id="col-filter-emissao" placeholder="Filtrar data..." oninput="applyTableFilters()">
+        </div>
+        <div class="table-filter-item">
+          <label>Nº Nota</label>
+          <input type="text" id="col-filter-nota" placeholder="Filtrar nota..." oninput="applyTableFilters()">
+        </div>
+        <div class="table-filter-item">
+          <label>UF Filial</label>
+          <select id="col-filter-uf" onchange="applyTableFilters()">
+            <option value="">Todas UFs</option>
+          </select>
+        </div>
+        <div class="table-filter-item">
+          <label>Fornecedor</label>
+          <select id="col-filter-fornecedor" onchange="applyTableFilters()">
+            <option value="">Todos Fornecedores</option>
+          </select>
+        </div>
+        <div class="table-filter-item">
+          <label>Modalidade</label>
+          <select id="col-filter-modalidade" onchange="applyTableFilters()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="table-filter-item">
+          <label>Transportadora</label>
+          <select id="col-filter-transportadora" onchange="applyTableFilters()">
+            <option value="">Todas Transp.</option>
+          </select>
+        </div>
+        <div class="table-filter-item">
+          <label>Status</label>
+          <select id="col-filter-status" onchange="applyTableFilters()">
+            <option value="">Todos Status</option>
+            <option value="Normal">Normal (0-6d)</option>
+            <option value="Pendente">Pendente (7-15d)</option>
+            <option value="Atencao">Atenção (16-30d)</option>
+            <option value="Critico">Crítico (>30d)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>DATA EMISSÃO</th>
+              <th>NUMERO NOTA</th>
+              <th>UF FILIAL</th>
+              <th>FORNECEDOR</th>
+              <th>MODALIDADE</th>
+              <th>VALOR</th>
+              <th>DIAS NF</th>
+              <th>Previsão de Entrega</th>
+              <th>Status</th>
+              <th>Transportadora</th>
+              <th>Observações</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <!-- Linhas dinâmicas -->
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="page-info">Página 1 de 1</span>
+        <div class="pagination-btns">
+          <button id="btn-prev" onclick="changePage(-1)">Anterior</button>
+          <button id="btn-next" onclick="changePage(1)">Próxima</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    let rawData = [
+      {"emissao":"2026-08-31","nota":121436,"uf":"PA","fornecedor":"SYL (PIRION)","modalidade":"Normal","valor":1191.25,"dias":50,"previsao":"","transportadora":"JSL Logística","obs":""},
+      {"emissao":"2026-09-10","nota":931295,"uf":"PE","fornecedor":"SCHADEK","modalidade":"Normal","valor":232.65,"dias":40,"previsao":"","transportadora":"Translovato","obs":""},
+      {"emissao":"2026-09-17","nota":172491,"uf":"GO","fornecedor":"GAUSS CDG","modalidade":"Crossdocking","valor":1460.48,"dias":33,"previsao":"","transportadora":"Rodonaves","obs":""},
+      {"emissao":"2026-09-24","nota":140398,"uf":"MS","fornecedor":"IMA","modalidade":"Normal","valor":1745.17,"dias":26,"previsao":"","transportadora":"JSL Logística","obs":""},
+      {"emissao":"2026-09-24","nota":140403,"uf":"SC","fornecedor":"IMA","modalidade":"Normal","valor":191.26,"dias":26,"previsao":"","transportadora":"Atlas Transportes","obs":""},
+      {"emissao":"2026-09-25","nota":140502,"uf":"MT","fornecedor":"IMA","modalidade":"Normal","valor":892.10,"dias":25,"previsao":"","transportadora":"Rodonaves","obs":""},
+      {"emissao":"2026-09-28","nota":705423,"uf":"MT","fornecedor":"DAYCO","modalidade":"Normal","valor":12450.00,"dias":22,"previsao":"","transportadora":"JSL Logística","obs":""},
+      {"emissao":"2026-10-01","nota":883210,"uf":"ES","fornecedor":"MAHLE","modalidade":"Crossdocking","valor":3420.50,"dias":19,"previsao":"","transportadora":"Translovato","obs":""},
+      {"emissao":"2026-10-05","nota":992104,"uf":"MG","fornecedor":"BOSCH","modalidade":"Normal","valor":18900.00,"dias":15,"previsao":"","transportadora":"Atlas Transportes","obs":""},
+      {"emissao":"2026-10-10","nota":112049,"uf":"PE","fornecedor":"DELPHI","modalidade":"Crossdocking","valor":4510.80,"dias":10,"previsao":"","transportadora":"Rodonaves","obs":""},
+      {"emissao":"2026-10-15","nota":334012,"uf":"MT","fornecedor":"SUN","modalidade":"Normal","valor":50201.01,"dias":5,"previsao":"","transportadora":"JSL Logística","obs":""},
+      {"emissao":"2026-10-18","nota":554102,"uf":"SC","fornecedor":"TUBA","modalidade":"Crossdocking","valor":6584.66,"dias":2,"previsao":"","transportadora":"Atlas Transportes","obs":""}
+    ];
+
+    let noteMemory = {};
+
+    let filteredData = [];
+    let tableFilteredData = [];
+    let currentPage = 1;
+    const pageSize = 10;
+    let chartModalidade, chartFornecedores, chartUF, chartAging;
+
+    const fmtR$ = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    const fmtNum = (val) => new Intl.NumberFormat('pt-BR').format(val);
+
+    const fmtDataBR = (dataStr) => {
+      if (!dataStr) return '-';
+      let str = String(dataStr).trim();
+      if (str.includes('/')) return str;
+      const parts = str.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return str;
+    };
+
+    function handleTitleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const preview = document.getElementById('title-img-preview');
+        preview.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    window.onload = function() {
+      rawData.forEach(d => {
+        noteMemory[String(d.nota)] = {
+          transportadora: d.transportadora || '',
+          previsao: d.previsao || '',
+          obs: d.obs || ''
+        };
+      });
+      populateFilterOptions();
+      applyFilters();
+    };
+
+    function populateFilterOptions() {
+      const selectedGlobalForn = document.getElementById('filter-fornecedor') ? document.getElementById('filter-fornecedor').value : '';
+      const selectedColForn = document.getElementById('col-filter-fornecedor') ? document.getElementById('col-filter-fornecedor').value : '';
+
+      // Filtra UFs gerais com base no fornecedor global selecionado
+      let globalBase = rawData;
+      if (selectedGlobalForn) {
+        globalBase = rawData.filter(d => d.fornecedor === selectedGlobalForn);
+      }
+      const ufsGerais = [...new Set(globalBase.map(d => d.uf))].filter(Boolean).sort();
+      const fornecedoresGerais = [...new Set(rawData.map(d => d.fornecedor))].filter(Boolean).sort();
+      const modalidadesGerais = [...new Set(rawData.map(d => d.modalidade))].filter(Boolean).sort();
+      const transportadorasGerais = [...new Set(rawData.map(d => d.transportadora))].filter(Boolean).sort();
+
+      // Atualiza Selects Globais mantendo seleções do usuário
+      const currentGlobalUF = document.getElementById('filter-uf').value;
+      document.getElementById('filter-uf').innerHTML = '<option value="">Todas as UFs</option>' + ufsGerais.map(u => `<option value="${u}">${u}</option>`).join('');
+      if (ufsGerais.includes(currentGlobalUF)) document.getElementById('filter-uf').value = currentGlobalUF;
+
+      document.getElementById('filter-fornecedor').innerHTML = '<option value="">Todos os Fornecedores</option>' + fornecedoresGerais.map(f => `<option value="${f}">${f}</option>`).join('');
+      if (fornecedoresGerais.includes(selectedGlobalForn)) document.getElementById('filter-fornecedor').value = selectedGlobalForn;
+
+      document.getElementById('filter-modalidade').innerHTML = '<option value="">Todas</option>' + modalidadesGerais.map(m => `<option value="${m}">${m}</option>`).join('');
+
+      // Filtra UFs da tabela com base no fornecedor selecionado na coluna da tabela
+      let colBase = rawData;
+      if (selectedColForn) {
+        colBase = rawData.filter(d => d.fornecedor === selectedColForn);
+      }
+      const ufsCol = [...new Set(colBase.map(d => d.uf))].filter(Boolean).sort();
+
+      const currentColUF = document.getElementById('col-filter-uf').value;
+      document.getElementById('col-filter-uf').innerHTML = '<option value="">Todas UFs</option>' + ufsCol.map(u => `<option value="${u}">${u}</option>`).join('');
+      if (ufsCol.includes(currentColUF)) document.getElementById('col-filter-uf').value = currentColUF;
+
+      document.getElementById('col-filter-fornecedor').innerHTML = '<option value="">Todos Fornecedores</option>' + fornecedoresGerais.map(f => `<option value="${f}">${f}</option>`).join('');
+      if (fornecedoresGerais.includes(selectedColForn)) document.getElementById('col-filter-fornecedor').value = selectedColForn;
+
+      document.getElementById('col-filter-modalidade').innerHTML = '<option value="">Todas</option>' + modalidadesGerais.map(m => `<option value="${m}">${m}</option>`).join('');
+      
+      const currentTransp = document.getElementById('col-filter-transportadora').value;
+      document.getElementById('col-filter-transportadora').innerHTML = '<option value="">Todas Transp.</option>' + transportadorasGerais.map(t => `<option value="${t}">${t}</option>`).join('');
+      if (transportadorasGerais.includes(currentTransp)) document.getElementById('col-filter-transportadora').value = currentTransp;
+    }
+
+    function applyFilters() {
+      populateFilterOptions();
+
+      const ufVal = document.getElementById('filter-uf').value;
+      const fornVal = document.getElementById('filter-fornecedor').value;
+      const modVal = document.getElementById('filter-modalidade').value;
+      const faixaVal = document.getElementById('filter-faixa').value;
+      const searchVal = document.getElementById('filter-search').value.toLowerCase();
+
+      filteredData = rawData.filter(d => {
+        if (ufVal && d.uf !== ufVal) return false;
+        if (fornVal && d.fornecedor !== fornVal) return false;
+        if (modVal && d.modalidade !== modVal) return false;
+        
+        if (faixaVal === '0-6' && d.dias > 6) return false;
+        if (faixaVal === '7-15' && (d.dias < 7 || d.dias > 15)) return false;
+        if (faixaVal === '16-30' && (d.dias <= 15 || d.dias > 30)) return false;
+        if (faixaVal === '31+' && d.dias <= 30) return false;
+
+        if (searchVal) {
+          const matchNota = String(d.nota).toLowerCase().includes(searchVal);
+          const matchForn = String(d.fornecedor).toLowerCase().includes(searchVal);
+          const matchTransp = String(d.transportadora).toLowerCase().includes(searchVal);
+          if (!matchNota && !matchForn && !matchTransp) return false;
+        }
+
+        return true;
+      });
+
+      filteredData.sort((a, b) => b.dias - a.dias);
+
+      updateDashboard();
+      applyTableFilters();
+    }
+
+    function applyTableFilters() {
+      const emVal = document.getElementById('col-filter-emissao').value.toLowerCase();
+      const notaVal = document.getElementById('col-filter-nota').value.toLowerCase();
+      const ufColVal = document.getElementById('col-filter-uf').value;
+      const fornColVal = document.getElementById('col-filter-fornecedor').value;
+      const modColVal = document.getElementById('col-filter-modalidade').value;
+      const transpColVal = document.getElementById('col-filter-transportadora').value;
+      const statusColVal = document.getElementById('col-filter-status').value;
+
+      tableFilteredData = filteredData.filter(d => {
+        const dataBR = fmtDataBR(d.emissao).toLowerCase();
+        if (emVal && !dataBR.includes(emVal) && !String(d.emissao).toLowerCase().includes(emVal)) return false;
+        if (notaVal && !String(d.nota).toLowerCase().includes(notaVal)) return false;
+        if (ufColVal && d.uf !== ufColVal) return false;
+        if (fornColVal && d.fornecedor !== fornColVal) return false;
+        if (modColVal && d.modalidade !== modColVal) return false;
+        if (transpColVal && d.transportadora !== transpColVal) return false;
+
+        if (statusColVal) {
+          let st = 'Normal';
+          if (d.dias > 30) st = 'Critico';
+          else if (d.dias >= 16) st = 'Atencao';
+          else if (d.dias >= 7) st = 'Pendente';
+
+          if (st !== statusColVal) return false;
+        }
+
+        return true;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function updateTransportadoraData(nota, valorData) {
+      const key = String(nota);
+      const item = rawData.find(d => String(d.nota) === key);
+      if (item) {
+        item.transportadora = valorData;
+      }
+      if (!noteMemory[key]) noteMemory[key] = { transportadora: '', previsao: '', obs: '' };
+      noteMemory[key].transportadora = valorData;
+
+      populateFilterOptions();
+      applyFilters();
+    }
+
+    function updatePrevisaoData(nota, valorData) {
+      const key = String(nota);
+      const item = rawData.find(d => String(d.nota) === key);
+      if (item) {
+        item.previsao = valorData;
+      }
+      if (!noteMemory[key]) noteMemory[key] = { transportadora: '', previsao: '', obs: '' };
+      noteMemory[key].previsao = valorData;
+    }
+
+    function updateObsData(nota, valorData) {
+      const key = String(nota);
+      const item = rawData.find(d => String(d.nota) === key);
+      if (item) {
+        item.obs = valorData;
+      }
+      if (!noteMemory[key]) noteMemory[key] = { transportadora: '', previsao: '', obs: '' };
+      noteMemory[key].obs = valorData;
+    }
+
+    function removeNote(nota) {
+      if (confirm(`Deseja realmente excluir a nota ${nota}?`)) {
+        rawData = rawData.filter(d => String(d.nota) !== String(nota));
+        populateFilterOptions();
+        applyFilters();
+      }
+    }
+
+    function removeAllNotes() {
+      if (confirm('Tem certeza que deseja excluir toda a relação de notas fiscais? Esta ação limpará todos os registros.')) {
+        rawData = [];
+        populateFilterOptions();
+        applyFilters();
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-uf').value = '';
+      document.getElementById('filter-fornecedor').value = '';
+      document.getElementById('filter-modalidade').value = '';
+      document.getElementById('filter-faixa').value = '';
+      document.getElementById('filter-search').value = '';
+      
+      document.getElementById('col-filter-emissao').value = '';
+      document.getElementById('col-filter-nota').value = '';
+      document.getElementById('col-filter-uf').value = '';
+      document.getElementById('col-filter-fornecedor').value = '';
+      document.getElementById('col-filter-modalidade').value = '';
+      document.getElementById('col-filter-transportadora').value = '';
+      document.getElementById('col-filter-status').value = '';
+
+      populateFilterOptions();
+      applyFilters();
+    }
+
+    function updateDashboard() {
+      updateKPIs();
+      updateInsights();
+      renderCharts();
+    }
+
+    function updateKPIs() {
+      const totalVal = filteredData.reduce((acc, d) => acc + d.valor, 0);
+      const totalNotes = filteredData.length;
+      const avgDays = totalNotes ? (filteredData.reduce((acc, d) => acc + d.dias, 0) / totalNotes).toFixed(1) : 0;
+      
+      const criticalNotes = filteredData.filter(d => d.dias >= 7);
+      const criticalVal = criticalNotes.reduce((acc, d) => acc + d.valor, 0);
+
+      document.getElementById('kpi-total-val').innerText = fmtR$(totalVal);
+      document.getElementById('kpi-total-notes').innerText = fmtNum(totalNotes);
+      document.getElementById('kpi-avg-days').innerText = `${avgDays} dias`;
+      document.getElementById('kpi-critical-val').innerText = fmtR$(criticalVal);
+      document.getElementById('kpi-critical-count').innerText = `${criticalNotes.length} notas com 7+ dias em trânsito`;
+      document.getElementById('kpi-over-7-count').innerText = `${criticalNotes.length} notas`;
+    }
+
+    function updateInsights() {
+      if (filteredData.length === 0) {
+        document.getElementById('insight-fornecedor').innerText = 'Sem dados.';
+        document.getElementById('insight-uf').innerText = 'Sem dados.';
+        document.getElementById('insight-aging').innerText = 'Sem dados.';
+        return;
+      }
+
+      const fornMap = {};
+      filteredData.forEach(d => fornMap[d.fornecedor] = (fornMap[d.fornecedor] || 0) + d.valor);
+      const topForn = Object.entries(fornMap).sort((a,b) => b[1] - a[1])[0];
+      const totalVal = filteredData.reduce((acc, d) => acc + d.valor, 0);
+      const fornPct = ((topForn[1] / totalVal) * 100).toFixed(1);
+      document.getElementById('insight-fornecedor').innerHTML = `Maior valor faturado: <b>${topForn[0]}</b> com <b>${fmtR$(topForn[1])}</b> (<b>${fornPct}%</b> do total).`;
+
+      const ufCountMap = {};
+      filteredData.forEach(d => ufCountMap[d.uf] = (ufCountMap[d.uf] || 0) + 1);
+      const topUFCount = Object.entries(ufCountMap).sort((a,b) => b[1] - a[1])[0];
+      document.getElementById('insight-uf').innerHTML = `CD/Filial líder em emissões: <b>${topUFCount[0]}</b> com <b>${fmtNum(topUFCount[1])} notas</b> registradas.`;
+
+      const criticas = filteredData.filter(d => d.dias >= 7);
+      document.getElementById('insight-aging').innerHTML = `Existem <b>${criticas.length} notas (≥ 7 dias em trânsito)</b> somando <b>${fmtR$(criticas.reduce((a,b)=>a+b.valor,0))}</b> que requerem cobrança logística prioritária.`;
+    }
+
+    function renderCharts() {
+      // 1. Modalidade (Donut)
+      const modMap = {};
+      filteredData.forEach(d => modMap[d.modalidade] = (modMap[d.modalidade] || 0) + d.valor);
+      
+      const modLabels = Object.keys(modMap);
+      const modColors = modLabels.map(m => m.toLowerCase().includes('cross') ? '#0284C7' : '#38BDF8');
+
+      if (chartModalidade) chartModalidade.destroy();
+      chartModalidade = new Chart(document.getElementById('chartModalidade'), {
+        type: 'doughnut',
+        data: {
+          labels: modLabels,
+          datasets: [{
+            data: Object.values(modMap),
+            backgroundColor: modColors,
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            datalabels: {
+              color: '#FFFFFF',
+              font: { weight: 'bold', size: 11 },
+              formatter: (value) => fmtR$(value)
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${fmtR$(context.raw)}`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 2. Maior Faturamento por Fornecedor (R$)
+      const fornMap = {};
+      filteredData.forEach(d => fornMap[d.fornecedor] = (fornMap[d.fornecedor] || 0) + d.valor);
+      const sortedForn = Object.entries(fornMap).sort((a,b) => b[1] - a[1]).slice(0, 10);
+
+      if (chartFornecedores) chartFornecedores.destroy();
+      chartFornecedores = new Chart(document.getElementById('chartFornecedores'), {
+        type: 'bar',
+        data: {
+          labels: sortedForn.map(f => f[0]),
+          datasets: [{
+            label: 'Total Faturado (R$)',
+            data: sortedForn.map(f => f[1]),
+            backgroundColor: '#EF4444',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Total Faturado: ${fmtR$(context.raw)}`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 3. UF Filial (Qtd de Notas)
+      const ufMap = {};
+      filteredData.forEach(d => ufMap[d.uf] = (ufMap[d.uf] || 0) + 1);
+      const sortedUF = Object.entries(ufMap).sort((a,b) => b[1] - a[1]);
+
+      if (chartUF) chartUF.destroy();
+      chartUF = new Chart(document.getElementById('chartUF'), {
+        type: 'bar',
+        data: {
+          labels: sortedUF.map(u => u[0]),
+          datasets: [{
+            label: 'Qtd de Notas',
+            data: sortedUF.map(u => u[1]),
+            backgroundColor: '#0284C7',
+            borderRadius: 6
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+
+      // 4. Faixa de Dias em Trânsito
+      const agingCounts = { 'Até 6 dias': 0, '7 a 15 dias': 0, '16 a 30 dias': 0, 'Mais de 30 dias': 0 };
+      filteredData.forEach(d => {
+        if (d.dias <= 6) agingCounts['Até 6 dias']++;
+        else if (d.dias <= 15) agingCounts['7 a 15 dias']++;
+        else if (d.dias <= 30) agingCounts['16 a 30 dias']++;
+        else agingCounts['Mais de 30 dias']++;
+      });
+
+      if (chartAging) chartAging.destroy();
+      chartAging = new Chart(document.getElementById('chartAging'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(agingCounts),
+          datasets: [{
+            label: 'Qtd de Notas',
+            data: Object.values(agingCounts),
+            backgroundColor: [
+              '#22C55E', // Até 6 dias: Verde mais claro
+              '#FCD34D', // 7 a 15 dias: Amarelo mais claro
+              '#FB923C', // 16 a 30 dias: Laranja mais claro
+              '#F87171'  // Mais de 30 dias: Vermelho mais claro
+            ],
+            borderRadius: 6
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      const totalItems = tableFilteredData.length;
+      document.getElementById('table-count').innerText = `Mostrando ${totalItems} registro(s)`;
+
+      const totalPages = Math.ceil(totalItems / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIdx = (currentPage - 1) * pageSize;
+      const pageData = tableFilteredData.slice(startIdx, startIdx + pageSize);
+
+      pageData.forEach(row => {
+        let badgeClass = 'badge-success';
+        let badgeText = 'Normal (0-6d)';
+
+        if (row.dias > 30) {
+          badgeClass = 'badge-danger';
+          badgeText = 'Crítico (>30d)';
+        } else if (row.dias >= 16) {
+          badgeClass = 'badge-atencao';
+          badgeText = 'Atenção (16-30d)';
+        } else if (row.dias >= 7) {
+          badgeClass = 'badge-pendente';
+          badgeText = 'Pendente (7-15d)';
+        }
+
+        const tr = document.createElement('tr');
+        if (row.dias >= 20) {
+          tr.style.color = '#C62828';
+          tr.style.fontWeight = 'bold';
+        }
+
+        tr.innerHTML = `
+          <td>${fmtDataBR(row.emissao)}</td>
+          <td><b>${row.nota}</b></td>
+          <td><span class="badge badge-purple">${row.uf}</span></td>
+          <td>${row.fornecedor}</td>
+          <td>${row.modalidade}</td>
+          <td><b>${fmtR$(row.valor)}</b></td>
+          <td><b>${row.dias} dia(s)</b></td>
+          <td>
+            <input type="date" class="input-date-table" value="${row.previsao || ''}" onchange="updatePrevisaoData('${row.nota}', this.value)">
+          </td>
+          <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+          <td>
+            <input type="text" class="input-transp-table" placeholder="Transportadora..." value="${row.transportadora || ''}" onchange="updateTransportadoraData('${row.nota}', this.value)">
+          </td>
+          <td>
+            <input type="text" class="input-obs-table" placeholder="Adicionar obs..." value="${row.obs || ''}" onchange="updateObsData('${row.nota}', this.value)">
+          </td>
+          <td>
+            <button class="btn-delete-row" title="Excluir nota" onclick="removeNote('${row.nota}')">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      lucide.createIcons();
+
+      document.getElementById('page-info').innerText = `Página ${currentPage} de ${totalPages}`;
+      document.getElementById('btn-prev').disabled = currentPage === 1;
+      document.getElementById('btn-next').disabled = currentPage === totalPages || totalPages === 0;
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      renderTable();
+    }
+
+    function exportTableDataExcel() {
+      if (tableFilteredData.length === 0) {
+        alert('Nenhuma nota encontrada para exportar.');
+        return;
+      }
+
+      const hojeStr = new Date().toISOString().slice(0, 10);
+
+      // Exportação exata até a coluna Transportadora (sem a coluna Observações)
+      const rawRows = tableFilteredData.map(item => ({
+        'DATA EMISSÃO': fmtDataBR(item.emissao),
+        'NUMERO NOTA': item.nota,
+        'UF FILIAL': item.uf,
+        'FORNECEDOR': item.fornecedor,
+        'MODALIDADE': item.modalidade,
+        'VALOR': item.valor,
+        'DIAS NF': item.dias,
+        'PREVISÃO DE ENTREGA': fmtDataBR(item.previsao) || '',
+        'TRANSPORTADORA': item.transportadora || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rawRows);
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      const thinBorder = {
+        top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+      };
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[cellAddress]) continue;
+          if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
+          
+          worksheet[cellAddress].s.border = thinBorder;
+
+          if (R === 0) {
+            worksheet[cellAddress].s.font = { bold: true, color: { rgb: 'FFFFFF' } };
+            worksheet[cellAddress].s.fill = { fgColor: { rgb: '2E7D32' } };
+          } else {
+            const diasCell = worksheet[XLSX.utils.encode_cell({ r: R, c: 6 })];
+            if (diasCell && Number(diasCell.v) >= 20) {
+              worksheet[cellAddress].s.font = { color: { rgb: 'C62828' }, bold: true };
+            }
+          }
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Notas em Transito");
+      XLSX.writeFile(workbook, `Relacao_Notas_em_Transito_${hojeStr}.xlsx`);
+    }
+
+    function exportAtrasadasExcel() {
+      const atrasadas = rawData.filter(d => d.dias >= 7);
+      if (atrasadas.length === 0) {
+        alert('Nenhuma nota com 7 dias ou mais encontrada.');
+        return;
+      }
+      atrasadas.sort((a, b) => b.dias - a.dias);
+
+      const rawRows = atrasadas.map(item => ({
+        'DATA EMISSÃO': fmtDataBR(item.emissao),
+        'NUMERO NOTA': item.nota,
+        'UF FILIAL': item.uf,
+        'FORNECEDOR': item.fornecedor,
+        'MODALIDADE': item.modalidade,
+        'VALOR': item.valor,
+        'DIAS NF': item.dias,
+        'PREVISÃO DE ENTREGA': fmtDataBR(item.previsao) || '',
+        'TRANSPORTADORA': item.transportadora || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rawRows);
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      const thinBorder = {
+        top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+        right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+      };
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[cellAddress]) continue;
+          if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
+          worksheet[cellAddress].s.border = thinBorder;
+
+          if (R === 0) {
+            worksheet[cellAddress].s.font = { bold: true, color: { rgb: 'FFFFFF' } };
+            worksheet[cellAddress].s.fill = { fgColor: { rgb: 'C62828' } };
+          } else {
+            const diasCell = worksheet[XLSX.utils.encode_cell({ r: R, c: 6 })];
+            if (diasCell && Number(diasCell.v) >= 20) {
+              worksheet[cellAddress].s.font = { color: { rgb: 'C62828' }, bold: true };
+            }
+          }
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Notas 7+ Dias");
+      XLSX.writeFile(workbook, `Relacao_Notas_Atrasadas_7_Dias_Mais_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+          if (json.length > 0) {
+            rawData = json.map((row, idx) => {
+              const getVal = (keys) => {
+                for (let k of keys) {
+                  const foundKey = Object.keys(row).find(x => x.trim().toUpperCase() === k.toUpperCase());
+                  if (foundKey !== undefined && row[foundKey] !== undefined && row[foundKey] !== "") {
+                    return row[foundKey];
+                  }
+                }
+                return "";
+              };
+
+              const notaNum = String(getVal(['NUMERO NOTA', 'NUMERO DA NOTA', 'NOTA', 'Nº NOTA']) || (idx + 1));
+              
+              const mem = noteMemory[notaNum] || {};
+
+              return {
+                emissao: getVal(['DATA EMISSÃO', 'DATA EMISSAO', 'DATA', 'EMISSAO']),
+                nota: notaNum,
+                uf: getVal(['UF FILIAL', 'UF', 'FILIAL']) || 'N/A',
+                fornecedor: getVal(['FORNECEDOR', 'FORN']) || 'N/A',
+                modalidade: getVal(['MODALIDADE', 'MOD']) || 'Normal',
+                valor: parseFloat(getVal(['VALOR', 'VL TOTAL', 'TOTAL']) || 0),
+                dias: parseInt(getVal(['DIAS NF', 'DIAS', 'DIAS EM TRANSITO']) || 0),
+                previsao: mem.previsao !== undefined && mem.previsao !== '' ? mem.previsao : getVal(['PREVISÃO DE ENTREGA', 'PREVISAO DE ENTREGA', 'PREVISAO']),
+                transportadora: mem.transportadora !== undefined && mem.transportadora !== '' ? mem.transportadora : getVal(['TRANSPORTADORA', 'TRANSPORTE', 'TRANSP']),
+                obs: mem.obs !== undefined && mem.obs !== '' ? mem.obs : getVal(['OBSERVAÇÕES', 'OBSERVACOES', 'OBS'])
+              };
+            });
+
+            document.getElementById('filter-uf').value = '';
+            document.getElementById('filter-fornecedor').value = '';
+            document.getElementById('filter-modalidade').value = '';
+            document.getElementById('filter-faixa').value = '';
+            document.getElementById('filter-search').value = '';
+            document.getElementById('col-filter-emissao').value = '';
+            document.getElementById('col-filter-nota').value = '';
+            document.getElementById('col-filter-uf').value = '';
+            document.getElementById('col-filter-fornecedor').value = '';
+            document.getElementById('col-filter-modalidade').value = '';
+            document.getElementById('col-filter-transportadora').value = '';
+            document.getElementById('col-filter-status').value = '';
+
+            populateFilterOptions();
+            applyFilters();
+            alert(`Base importada com sucesso! ${rawData.length} nota(s) carregada(s) para o dashboard.`);
+          } else {
+            alert('O arquivo selecionado parece estar vazio.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao processar o arquivo. Verifique se o formato está correto.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      e.target.value = '';
+    }
+  </script>
+</body>
+</html>
